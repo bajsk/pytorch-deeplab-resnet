@@ -11,3 +11,7 @@ class Config():
     root_path = root_dir
     image_path = os.path.join(root_dir, "images")
     model_path = os.path.join(root_dir, "models")
+    data_path = os.path.join(root_dir, "data")
+    snapshot_path = os.path.join(root_dir, "data", "snapshots")
+    model_name = "inhand_robot"
+    

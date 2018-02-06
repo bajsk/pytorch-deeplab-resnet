@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -14,8 +17,12 @@ import matplotlib.pyplot as plt
 from tqdm import *
 import random
 from docopt import docopt
-import timeit
-start = timeit.timeit
+import time
+import argparse
+
+from config import Config
+
+start = time.time()
 docstr = """Train ResNet-DeepLab on VOC12 (scenes) in pytorch using MSCOCO pretrained initialization 
 
 Usage: 
@@ -35,12 +42,87 @@ Options:
 """
 
 #    -b, --batchSize=<int>       num sample per batch [default: 1] currently only batch size of 1 is implemented, arbitrary batch size to be implemented soon
-args = docopt(docstr, version='v0.1')
-print(args)
+
+############################################################################
+
+default_model = "inhand_robot"
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    "--GTpath",
+    help = "Groud truth path prefix",
+    type = str,
+    default = os.path.join(Config.data_path, default_model, "augmented_data", "annotations")
+)
+
+parser.add_argument(
+    "--IMpath",
+    help = "Sketch images path prefix",
+    type = str,
+    default = os.path.join(Config.data_path, default_model, "augmented_data", "frames")
+)
+
+parser.add_argument(
+    "--NoLabels",
+    help = "Num of classes including background",
+    type = int,
+    default = 3
+)
+
+parser.add_argument(
+    "--LISTpath",
+    help = "Input image number list file",
+    type = str,
+    default = os.path.join(Config.data_path, default_model, "train_aug.txt")
+)
+
+parser.add_argument(
+    "--lr",
+    help = "Learning rate",
+    type = float,
+    default = 0.00025
+)
+
+parser.add_argument(
+    "--iterSize",
+    help = "Num iters to accumulate gradients over",
+    type = int,
+    default = 10
+)
+
+parser.add_argument(
+    "--wtDecay",
+    help = "Weight decay during training",
+    type = float,
+    default = 0.0005
+)
+
+parser.add_argument(
+    "--gpu0",
+    help = "GPU number",
+    type = int,
+    default = 0
+)
+
+parser.add_argument(
+    "--maxIter",
+    help = "Maximum number of iterations",
+    type = int,
+    default = 20000
+)
+
+args = parser.parse_args()
+
+print args
+
+############################################################################
+
+# args = docopt(docstr, version='v0.1')
+# print(args)
 
 cudnn.enabled = False
-gpu0 = int(args['--gpu0'])
-
+gpu0 = args.gpu0
 
 def outS(i):
     """Given shape of input image as i,i,3 in deeplab-resnet model, this function
@@ -59,7 +141,7 @@ def read_file(path_to_file):
     return img_list
 
 def chunker(seq, size):
- return (seq[pos:pos+size] for pos in xrange(0,len(seq), size))
+    return (seq[pos:pos+size] for pos in xrange(0,len(seq), size))
 
 def resize_label_batch(label, size):
     label_resized = np.zeros((size,size,1,label.shape[3]))
@@ -84,8 +166,10 @@ def scale_gt(img_temp,scale):
     return cv2.resize(img_temp,new_dims,interpolation = cv2.INTER_NEAREST).astype(float)
    
 def get_data_from_chunk_v2(chunk):
-    gt_path =  args['--GTpath']
-    img_path = args['--IMpath']
+    # gt_path =  args['--GTpath']
+    # img_path = args['--IMpath']
+    gt_path =  args.GTpath
+    img_path = args.IMpath
 
     scale = random.uniform(0.5, 1.3) #random.uniform(0.5,1.5) does not fit in a Titan X with the present version of pytorch, so we random scaling in the range (0.5,1.3), different than caffe implementation in that caffe used only 4 fixed scales. Refer to read me
     dim = int(scale*321)
@@ -132,10 +216,8 @@ def loss_calc(out, label,gpu0):
     
     return criterion(out,label)
 
-
 def lr_poly(base_lr, iter,max_iter,power):
     return base_lr*((1-float(iter)/max_iter)**(power))
-
 
 def get_1x_lr_params_NOscale(model):
     """
@@ -175,14 +257,15 @@ def get_10x_lr_params(model):
         for i in b[j]:
             yield i
 
-if not os.path.exists('data/snapshots'):
-    os.makedirs('data/snapshots')
+if not os.path.exists(Config.snapshot_path):
+    os.makedirs(Config.snapshot_path)
 
+model = deeplab_resnet.Res_Deeplab(args.NoLabels)
 
-model = deeplab_resnet.Res_Deeplab(int(args['--NoLabels']))
+saved_state_dict = torch.load(os.path.join(Config.model_path, "MS_DeepLab_resnet_pretrained_COCO_init.pth"))
 
-saved_state_dict = torch.load('data/MS_DeepLab_resnet_pretrained_COCO_init.pth')
-if int(args['--NoLabels'])!=21:
+if args.NoLabels != 21:
+
     for i in saved_state_dict:
         #Scale.layer5.conv2d_list.3.weight
         i_parts = i.split('.')
@@ -191,17 +274,18 @@ if int(args['--NoLabels'])!=21:
 
 model.load_state_dict(saved_state_dict)
 
-max_iter = int(args['--maxIter']) 
+max_iter = args.maxIter
 batch_size = 1
-weight_decay = float(args['--wtDecay'])
-base_lr = float(args['--lr'])
+weight_decay = args.wtDecay
+base_lr = args.lr
 
 model.float()
 model.eval() # use_global_stats = True
 
-img_list = read_file(args['--LISTpath'])
+img_list = read_file(args.LISTpath)
 
 data_list = []
+
 for i in range(10):  # make list for 10 epocs, though we will only use the first max_iter*batch_size entries of this list
     np.random.shuffle(img_list)
     data_list.extend(img_list)
@@ -221,7 +305,7 @@ for iter in range(max_iter+1):
 
     out = model(images)
     loss = loss_calc(out[0], label[0],gpu0)
-    iter_size = int(args['--iterSize']) 
+    iter_size = args.iterSize
     for i in range(len(out)-1):
         loss = loss + loss_calc(out[i+1],label[i+1],gpu0)
     loss = loss/iter_size 
@@ -239,6 +323,7 @@ for iter in range(max_iter+1):
 
     if iter % 1000 == 0 and iter!=0:
         print 'taking snapshot ...'
-        torch.save(model.state_dict(),'data/snapshots/VOC12_scenes_'+str(iter)+'.pth')
-end = timeit.timeit
+        torch.save(model.state_dict(), os.path.join(Config.snapshot_path, Config.model_name + "_" + str(iter) + ".pth"))
+
+end = time.time()
 print end-start,'seconds'
