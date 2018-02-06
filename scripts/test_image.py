@@ -2,23 +2,23 @@
 # -*- coding: utf-8 -*-
 
 import os
-root_dir = os.path.dirname(os.path.realpath(__file__))
+import sys
 
-import scipy
-from scipy import ndimage
+root_dir = os.path.dirname(os.path.realpath(__file__)) + "/../"
+sys.path.insert(0, root_dir)
+
 import cv2
 import numpy as np
-import sys
+
 import torch
 from torch.autograd import Variable
 import torchvision.models as models
 import torch.nn.functional as F
 import deeplab_resnet 
-from collections import OrderedDict
-import matplotlib.pyplot as plt
 import torch.nn as nn
 
 import cv2
+from config import Config
 
 max_label = 21
 gpu0 = 0
@@ -27,7 +27,7 @@ model.eval()
 counter = 0
 model.cuda(gpu0)
 
-saved_state_dict = torch.load(os.path.join(root_dir, "models/MS_DeepLab_resnet_trained_VOC.pth"))
+saved_state_dict = torch.load(os.path.join(Config.model_path , "MS_DeepLab_resnet_trained_VOC.pth"))
 model.load_state_dict(saved_state_dict)
 
 classes = np.array(('background',
@@ -46,7 +46,7 @@ colormap = np.array(colormap) * 255
 colormap = colormap.astype(np.uint8)
 
 img = np.zeros((640,640,3))
-img_temp = cv2.imread(os.path.join(root_dir, "images/human.jpg")).astype(float)
+img_temp = cv2.imread(os.path.join(Config.image_path, "human.jpg")).astype(float)
 img_original = img_temp
 img_temp[:,:,0] = img_temp[:,:,0] - 104.008
 img_temp[:,:,1] = img_temp[:,:,1] - 116.669
@@ -66,4 +66,4 @@ output = cv2.merge((output, output, output))
 output_rgb = np.zeros(output.shape, dtype=np.uint8)
 
 cv2.LUT(output, colormap, output_rgb)
-cv2.imwrite(os.path.join(root_dir, "images/prediction.png"), output_rgb)        
+cv2.imwrite(os.path.join(Config.image_path, "prediction.png"), output_rgb)        
