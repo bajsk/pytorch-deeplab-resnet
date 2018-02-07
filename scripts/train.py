@@ -134,6 +134,7 @@ def outS(i):
     return j
 
 def read_file(path_to_file):
+
     with open(path_to_file) as f:
         img_list = []
         for line in f:
@@ -141,9 +142,11 @@ def read_file(path_to_file):
     return img_list
 
 def chunker(seq, size):
+
     return (seq[pos:pos+size] for pos in xrange(0,len(seq), size))
 
 def resize_label_batch(label, size):
+
     label_resized = np.zeros((size,size,1,label.shape[3]))
     interp = nn.UpsamplingBilinear2d(size=(size, size))
     labelVar = Variable(torch.from_numpy(label.transpose(3, 2, 0, 1)))
@@ -152,22 +155,24 @@ def resize_label_batch(label, size):
     return label_resized
 
 def flip(I,flip_p):
+
     if flip_p>0.5:
         return np.fliplr(I)
     else:
         return I
 
 def scale_im(img_temp,scale):
+
     new_dims = (  int(img_temp.shape[0]*scale),  int(img_temp.shape[1]*scale)   )
     return cv2.resize(img_temp,new_dims).astype(float)
 
 def scale_gt(img_temp,scale):
+
     new_dims = (  int(img_temp.shape[0]*scale),  int(img_temp.shape[1]*scale)   )
     return cv2.resize(img_temp,new_dims,interpolation = cv2.INTER_NEAREST).astype(float)
    
 def get_data_from_chunk_v2(chunk):
-    # gt_path =  args['--GTpath']
-    # img_path = args['--IMpath']
+
     gt_path =  args.GTpath
     img_path = args.IMpath
 
@@ -202,6 +207,7 @@ def get_data_from_chunk_v2(chunk):
 
 
 def loss_calc(out, label,gpu0):
+
     """
     This function returns cross entropy loss for semantic segmentation
     """
@@ -220,6 +226,7 @@ def lr_poly(base_lr, iter,max_iter,power):
     return base_lr*((1-float(iter)/max_iter)**(power))
 
 def get_1x_lr_params_NOscale(model):
+
     """
     This generator returns all the parameters of the net except for 
     the last classification layer. Note that for each batchnorm layer, 
@@ -245,6 +252,7 @@ def get_1x_lr_params_NOscale(model):
                     yield k
 
 def get_10x_lr_params(model):
+
     """
     This generator returns all the parameters for the last layer of the net,
     which does the classification of pixel into classes
