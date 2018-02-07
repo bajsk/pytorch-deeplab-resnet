@@ -16,7 +16,7 @@ import os
 import matplotlib.pyplot as plt
 from tqdm import *
 import random
-from docopt import docopt
+# from docopt import docopt
 import time
 import argparse
 
@@ -182,7 +182,7 @@ def get_data_from_chunk_v2(chunk):
     gt = np.zeros((dim,dim,1,len(chunk)))
     for i,piece in enumerate(chunk):
         flip_p = random.uniform(0, 1)
-        img_temp = cv2.imread(os.path.join(img_path,piece+'.jpg')).astype(float)
+        img_temp = cv2.imread(os.path.join(img_path,piece+'.png')).astype(float)
         img_temp = cv2.resize(img_temp,(321,321)).astype(float)
         img_temp = scale_im(img_temp,scale)
         img_temp[:,:,0] = img_temp[:,:,0] - 104.008
