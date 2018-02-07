@@ -16,7 +16,7 @@ import os
 import matplotlib.pyplot as plt
 from tqdm import *
 import random
-# from docopt import docopt
+
 import time
 import argparse
 
